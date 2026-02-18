@@ -2,18 +2,36 @@
 
 namespace Greatcode\ControllerGlobal;
 
+use GuzzleHttp\Client;
+use PDO;
+
 class CtrlGlobal
 {
-    private static CtrlGlobal $instance;
-    public static function getInstance()
-    {
-        if (self::$instance === null) {
-            self::$instance = new CtrlGlobal();
-        }
-        return self::$instance;
-    }
+    /**
+     * Singleton instance.
+     * 
+     * @var CtrlGlobal|null
+     */
+    private static ?CtrlGlobal $instance = null;
 
+    /**
+     * Singleton http client instance.
+     * 
+     * @var Client|null
+     */
+    private static ?Client $httpClient = null;
+
+    /**
+     * Database connection.
+     * 
+     * @var Connection
+     */
     protected Connection $db;
+
+    /** 
+     * @var string
+     */
+    private string $encryption_key;
 
     /**
      * @param Connection|array|null $connection
@@ -21,7 +39,7 @@ class CtrlGlobal
      *   - array                → passed to Connection::fromConfig()
      *   - null                 → Connection::fromEnv()
      */
-    public function __construct(Connection|array|null $connection = null)
+    public function __construct(Connection|array|null $connection = null, string|null $encryption_key = null)
     {
         if ($connection instanceof Connection) {
             $this->db = $connection;
@@ -43,6 +61,19 @@ class CtrlGlobal
                 $this->db = Connection::fromEnv();
             }
         }
+
+        $this->encryption_key = $encryption_key ?? getenv('ENCRYPTION_KEY') ?? 'secret';
+    }
+
+    /**
+     * Get or create a singleton instance.
+     */
+    public static function getInstance(): static
+    {
+        if (self::$instance === null) {
+            self::$instance = new CtrlGlobal();
+        }
+        return self::$instance;
     }
 
     // -------------------------------------------------------------------------
@@ -196,12 +227,12 @@ class CtrlGlobal
     public function GetGlobalFilter(string $sql, array $params = []): array
     {
         if (empty($params)) {
-            return $this->db->query($sql)->fetchAll();
+            return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
         }
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -231,34 +262,12 @@ class CtrlGlobal
     public function runSql(string $sql, array $params = []): array
     {
         if (empty($params)) {
-            return $this->db->query($sql)->fetchAll();
+            return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
         }
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
-    }
-
-    // -------------------------------------------------------------------------
-    // Input sanitisation
-    // NOTE: prefer prepared statements (insert/update/delete above) over these.
-    // -------------------------------------------------------------------------
-
-    /**
-     * Escape a value for safe embedding in a raw SQL string.
-     * Returns the bare escaped value without surrounding quotes.
-     */
-    public function filterParams(mixed $params): string
-    {
-        $quoted = $this->db->quote((string) ($params ?? ''));
-        // PDO::quote() adds surrounding single-quotes; strip them for compatibility.
-        return substr($quoted, 1, -1);
-    }
-
-    /** Alias of filterParams. */
-    public function encrypt_params(mixed $params): string
-    {
-        return $this->filterParams($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // -------------------------------------------------------------------------
@@ -277,12 +286,96 @@ class CtrlGlobal
         return openssl_decrypt(base64_decode($string), 'AES-256-CBC', $key, 0, $iv);
     }
 
-    /** @return array{string, string} [key, iv] */
+    /** 
+     * @return array{string, string} [key, iv] 
+     */
     private function cryptoKeyIv(): array
     {
-        $secret = '4R1frAgiLPaMu17KAS';
-        $key    = hash('sha256', $secret);
-        $iv     = substr(hash('sha256', $secret), 0, 16);
+        $key    = hash('sha256', $this->encryption_key);
+        $iv     = substr(hash('sha256', $this->encryption_key), 0, 16);
         return [$key, $iv];
+    }
+
+    // -------------------------------------------------------------------------
+    // Http Client
+    // -------------------------------------------------------------------------
+
+    /**
+     * Get or create a singleton instance.
+     */
+    public function getHttpClient(): Client
+    {
+        if (self::$httpClient === null) {
+            self::$httpClient = new Client();
+        }
+        return self::$httpClient;
+    }
+
+    /**
+     * Send a GET request
+     * 
+     * @param string $url
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws Exception
+     */
+    public function httpGet(string $url)
+    {
+        $client = $this->getHttpClient();
+        return $client->get($url);
+    }
+
+    /**
+     * Send a POST request
+     * 
+     * @param string $url
+     * @param array $data
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws Exception
+     */
+    public function httpPost(string $url, array $data)
+    {
+        $client = $this->getHttpClient();
+        return $client->post($url, $data);
+    }
+
+    /**
+     * Send a PUT request
+     * 
+     * @param string $url
+     * @param array $data
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws Exception
+     */
+    public function httpPut(string $url, array $data)
+    {
+        $client = $this->getHttpClient();
+        return $client->put($url, $data);
+    }
+
+    /**
+     * Send a PATCH request
+     * 
+     * @param string $url
+     * @param array $data
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws Exception
+     */
+    public function httpPatch(string $url, array $data)
+    {
+        $client = $this->getHttpClient();
+        return $client->patch($url, $data);
+    }
+
+    /**
+     * Send a DELETE request
+     * 
+     * @param string $url
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws Exception
+     */
+    public function httpDelete(string $url)
+    {
+        $client = $this->getHttpClient();
+        return $client->delete($url);
     }
 }

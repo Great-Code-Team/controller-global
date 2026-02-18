@@ -4,7 +4,9 @@ namespace Greatcode\ControllerGlobal\Tests;
 
 use Greatcode\ControllerGlobal\Connection;
 use Greatcode\ControllerGlobal\CtrlGlobal;
+use GuzzleHttp\Client;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 class CtrlGlobalTest extends TestCase
 {
@@ -23,6 +25,16 @@ class CtrlGlobalTest extends TestCase
             )
         ');
         $this->ctrl = new CtrlGlobal($this->conn);
+    }
+
+    protected function tearDown(): void
+    {
+        // Reset static singletons between tests
+        $http = new ReflectionProperty(CtrlGlobal::class, 'httpClient');
+        $http->setValue(null, null);
+
+        $inst = new ReflectionProperty(CtrlGlobal::class, 'instance');
+        $inst->setValue(null, null);
     }
 
     // -------------------------------------------------------------------------
@@ -65,6 +77,35 @@ class CtrlGlobalTest extends TestCase
 
         putenv('DB_DRIVER');
         putenv('DB_NAME');
+    }
+
+    public function test_constructor_accepts_custom_encryption_key(): void
+    {
+        $ctrl = new CtrlGlobal($this->conn, 'my-secret-key');
+        $this->assertInstanceOf(CtrlGlobal::class, $ctrl);
+    }
+
+    public function test_encryption_key_affects_encode_output(): void
+    {
+        $ctrlA = new CtrlGlobal($this->conn, 'key-a');
+        $ctrlB = new CtrlGlobal($this->conn, 'key-b');
+
+        $this->assertNotSame($ctrlA->encode('hello'), $ctrlB->encode('hello'));
+    }
+
+    public function test_encryption_key_from_env(): void
+    {
+        putenv('DB_DRIVER=sqlite');
+        putenv('DB_NAME=:memory:');
+        putenv('ENCRYPTION_KEY=env-key');
+
+        $ctrl = new CtrlGlobal();
+        $encoded = $ctrl->encode('data');
+        $this->assertSame('data', $ctrl->decode($encoded));
+
+        putenv('DB_DRIVER');
+        putenv('DB_NAME');
+        putenv('ENCRYPTION_KEY');
     }
 
     // -------------------------------------------------------------------------
@@ -499,51 +540,26 @@ class CtrlGlobalTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // filterParams() / encrypt_params()
+    // getHttpClient()
     // -------------------------------------------------------------------------
 
-    public function test_filterParams_returns_string(): void
+    public function test_getHttpClient_returns_guzzle_client(): void
     {
-        $this->assertIsString($this->ctrl->filterParams('hello'));
+        $this->assertInstanceOf(Client::class, $this->ctrl->getHttpClient());
     }
 
-    public function test_filterParams_escapes_single_quotes(): void
+    public function test_getHttpClient_returns_same_instance(): void
     {
-        $result = $this->ctrl->filterParams("O'Brien");
-        // PDO::quote() escapes ' as '' — after stripping outer quotes we get O''Brien
-        $this->assertStringContainsString("''", $result);
+        $a = $this->ctrl->getHttpClient();
+        $b = $this->ctrl->getHttpClient();
+        $this->assertSame($a, $b);
     }
 
-    public function test_filterParams_handles_null(): void
+    public function test_getHttpClient_singleton_shared_across_instances(): void
     {
-        $this->assertSame('', $this->ctrl->filterParams(null));
-    }
-
-    public function test_filterParams_handles_empty_string(): void
-    {
-        $this->assertIsString($this->ctrl->filterParams(''));
-    }
-
-    public function test_filterParams_does_not_wrap_in_quotes(): void
-    {
-        $result = $this->ctrl->filterParams('simple');
-        // The outer single-quotes from PDO::quote() must be stripped
-        $this->assertStringStartsNotWith("'", $result);
-        $this->assertStringEndsNotWith("'", $result);
-    }
-
-    public function test_encrypt_params_is_alias_of_filterParams(): void
-    {
-        $input = "test'value";
-        $this->assertSame(
-            $this->ctrl->filterParams($input),
-            $this->ctrl->encrypt_params($input)
-        );
-    }
-
-    public function test_encrypt_params_handles_null(): void
-    {
-        $this->assertSame($this->ctrl->filterParams(null), $this->ctrl->encrypt_params(null));
+        $ctrlA = new CtrlGlobal($this->conn);
+        $ctrlB = new CtrlGlobal($this->conn);
+        $this->assertSame($ctrlA->getHttpClient(), $ctrlB->getHttpClient());
     }
 
     // -------------------------------------------------------------------------

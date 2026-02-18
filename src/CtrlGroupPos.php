@@ -4,6 +4,7 @@ namespace Greatcode\ControllerGlobal;
 
 use Exception;
 use GuzzleHttp\Client;
+use Psr\Http\Message\ResponseInterface;
 
 class CtrlGroupPos
 {
@@ -17,20 +18,35 @@ class CtrlGroupPos
      */
     private $integrator_url;
 
-    function __construct($pc_location, $integrator_url)
+    /**
+     * CtrlGlobal instance.
+     * 
+     * @var CtrlGlobal
+     */
+    private CtrlGlobal $ctrl_global;
+
+    /**
+     * Create a new CtrlGroupPos instance.
+     * 
+     * @param string $pc_location
+     * @param string $integrator_url
+     * @param CtrlGlobal|null $ctrl_global
+     */
+    function __construct(string $pc_location, string $integrator_url, CtrlGlobal|null $ctrl_global = null)
     {
         $this->pc_location = $pc_location;
         $this->integrator_url = $integrator_url;
+        $this->ctrl_global = $ctrl_global ?? CtrlGlobal::getInstance();
     }
 
     /**
      * send http get method
      * 
-     * @param string $url
+     * @param ResponseInterface $url
      * @return array
      * @throws Exception
      */
-    private function sendGet(string $url)
+    private function parseResponse(ResponseInterface $url)
     {
         $client = new Client();
         $response = $client->get($url);
@@ -64,7 +80,8 @@ class CtrlGroupPos
         }
 
         $url = $this->integrator_url . "/server/svr_pos_user.php?" . http_build_query($params);
-        return $this->sendGet($url);
+        $response = $this->ctrl_global->httpGet($url);
+        return $this->parseResponse($response);
     }
 
     /**
@@ -88,7 +105,8 @@ class CtrlGroupPos
         ];
 
         $url = $this->integrator_url . "/server/svr_pos_user.php?" . http_build_query($params);
-        return $this->sendGet($url);
+        $response = $this->ctrl_global->httpGet($url);
+        return $this->parseResponse($response);
     }
 
     /**
@@ -111,7 +129,8 @@ class CtrlGroupPos
             "last_pool" => urlencode(date("Y-m-d H:i:s"))
         ];
         $url = $this->integrator_url . "/server/svr_pos_user.php?" . http_build_query($params);
-        $this->sendGet($url);
+        $response = $this->ctrl_global->httpGet($url);
+        return $this->parseResponse($response);
     }
 
     /**
@@ -140,28 +159,9 @@ class CtrlGroupPos
 
         $url = $this->integrator_url . "/server/svr_group_pos.php?act=updatePos";
 
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($datas),
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Accept: application/json'
-            ],
-        ]);
-
-        $res = curl_exec($ch);
-        if (curl_errno($ch)) {
-            $err = curl_error($ch);
-            curl_close($ch);
-            return ['error' => "Curl error: $err"];
-        }
-
-        curl_close($ch);
-        return ['success' => true, 'response' => $res];
+        $response = $this->ctrl_global->httpPost($url, $datas);
+        $body = $response->getBody()->getContents();
+        return ['success' => true, 'response' => $body];
     }
 
     /**
@@ -191,8 +191,8 @@ class CtrlGroupPos
         ];
 
         $url = $this->integrator_url . "/server/svr_pos_user.php?" . http_build_query($params);
-
-        return $this->sendGet($url);
+        $response = $this->ctrl_global->httpGet($url);
+        return $this->parseResponse($response);
     }
 
     /**
@@ -218,8 +218,8 @@ class CtrlGroupPos
         ];
 
         $url = $this->integrator_url . "/server/svr_pos_user.php?" . http_build_query($params);
-
-        return $this->sendGet($url);
+        $response = $this->ctrl_global->httpGet($url);
+        return $this->parseResponse($response);
     }
 
     /**

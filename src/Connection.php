@@ -9,11 +9,26 @@ use Throwable;
 
 class Connection extends PDO
 {
-    private static ?self $instance = null;
+    /**
+     * Singleton instance.
+     * 
+     * @var Connection|null
+     */
+    private static ?Connection $instance = null;
 
-    /** Tracks the options passed to the constructor for drivers that don't support getAttribute(). */
+    /**
+     * Tracks the options passed to the constructor for drivers that don't support getAttribute().
+     */
     private array $pdoOptions = [];
 
+    /**
+     * Create a new Connection instance.
+     * 
+     * @param string $dsn
+     * @param string $username
+     * @param string $password
+     * @param array $options
+     */
     public function __construct(
         string $dsn,
         string $username = '',

@@ -106,7 +106,7 @@ $id = $conn->transaction(fn(Connection $db) => $db->lastInsertId());
 
 ## CtrlGlobal
 
-General-purpose controller with DML helpers, SELECT wrappers, input sanitisation, and AES-256-CBC encode/decode. Resolves its `Connection` automatically.
+General-purpose controller with DML helpers, SELECT wrappers, HTTP client wrappers, and AES-256-CBC encode/decode. Resolves its `Connection` automatically.
 
 ### Instantiation
 
@@ -119,6 +119,9 @@ $ctrl = new CtrlGlobal($connection);
 // From a config array (passed to Connection::fromConfig)
 $ctrl = new CtrlGlobal(['driver' => 'sqlite', 'dbname' => ':memory:']);
 
+// With a custom AES encryption key
+$ctrl = new CtrlGlobal($connection, 'my-secret-key');
+
 // From environment variables / global $cfg array
 $ctrl = new CtrlGlobal();
 
@@ -127,6 +130,11 @@ $ctrl = CtrlGlobal::getInstance();
 ```
 
 When constructed with `null` (default), it checks for a global `$cfg['db']` array first, then falls back to `Connection::fromEnv()`.
+
+The encryption key is resolved in this order:
+1. Explicit `$encryption_key` constructor argument
+2. `ENCRYPTION_KEY` environment variable
+3. Fallback value `'secret'`
 
 ### DML
 
@@ -209,28 +217,33 @@ Return the `name` column of the first result row, or an empty string if no rows 
 $name = $ctrl->getName('SELECT name FROM categories WHERE id = ?', [5]);
 ```
 
-### Input sanitisation
-
-> Prefer prepared statements (`insert`, `update`, etc.) over these helpers.
-
-#### filterParams() / encrypt_params()
-
-Escape a value for embedding in a raw SQL string. Returns the escaped value **without** surrounding quotes.
-
-```php
-$safe = $ctrl->filterParams($userInput);
-$sql  = "SELECT * FROM t WHERE col = '$safe'";
-```
-
-`encrypt_params()` is an alias for `filterParams()`.
-
 ### Encoding
 
-AES-256-CBC encode/decode with a fixed internal key.
+AES-256-CBC encode/decode. The key is determined by the constructor (see Instantiation above).
 
 ```php
 $token   = $ctrl->encode('sensitive-value');
 $decoded = $ctrl->decode($token); // 'sensitive-value'
+```
+
+Two instances using different keys will produce different ciphertext for the same input and cannot decode each other's output.
+
+### HTTP client
+
+Thin wrappers around a shared `GuzzleHttp\Client` singleton. All methods return a PSR-7 `ResponseInterface`.
+
+```php
+$response = $ctrl->httpGet('https://api.example.com/items');
+$response = $ctrl->httpPost('https://api.example.com/items', ['json' => ['name' => 'foo']]);
+$response = $ctrl->httpPut('https://api.example.com/items/1', ['json' => ['name' => 'bar']]);
+$response = $ctrl->httpPatch('https://api.example.com/items/1', ['json' => ['name' => 'baz']]);
+$response = $ctrl->httpDelete('https://api.example.com/items/1');
+```
+
+The underlying `GuzzleHttp\Client` instance is a static singleton shared across all `CtrlGlobal` instances:
+
+```php
+$client = $ctrl->getHttpClient(); // GuzzleHttp\Client
 ```
 
 ---
