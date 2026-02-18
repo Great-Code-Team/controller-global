@@ -29,7 +29,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: pdo, pdo_sqlite, openssl, curl
-          coverage: xdebug
+          coverage: none
           ini-values: error_reporting=E_ALL
 
       - name: Validate composer.json
@@ -51,15 +51,7 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Run unit tests
-        run: vendor/bin/phpunit --testsuite Unit --coverage-clover coverage/clover.xml
-
-      - name: Upload coverage report
-        if: matrix.php == '8.3'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/clover.xml
-          retention-days: 14
+        run: vendor/bin/phpunit --testsuite Unit
 
   # ---------------------------------------------------------------------------
   # Integration tests (real MySQL)
