@@ -68,10 +68,10 @@ class CtrlGlobal
     /**
      * Get or create a singleton instance.
      */
-    public static function getInstance(): static
+    public static function getInstance(Connection|array|null $connection = null, string|null $encryption_key = null): static
     {
         if (self::$instance === null) {
-            self::$instance = new CtrlGlobal();
+            self::$instance = new CtrlGlobal($connection, $$encryption_key);
         }
         return self::$instance;
     }
