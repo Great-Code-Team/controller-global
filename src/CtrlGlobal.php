@@ -7,6 +7,15 @@ use Throwable;
 
 class CtrlGlobal
 {
+    private static CtrlGlobal $instance;
+    public static function getInstance()
+    {
+        if (self::$instance === null) {
+            self::$instance = new CtrlGlobal();
+        }
+        return self::$instance;
+    }
+
     protected Connection $db;
 
     /**

@@ -52,8 +52,8 @@ class Connection extends PDO
     public static function fromConfig(array $config): static
     {
         $driver   = $config['driver']   ?? 'mysql';
-        $host     = $config['host']     ?? '127.0.0.1';
-        $port     = (int) ($config['port']    ?? 3306);
+        $host     = $config['host']     ?? 'localhost';
+        $port     = $config['port']     ?? '';
         $dbname   = $config['dbname']   ?? '';
         $charset  = $config['charset']  ?? 'utf8mb4';
         $username = $config['username'] ?? '';
@@ -61,8 +61,8 @@ class Connection extends PDO
         $options  = $config['options']  ?? [];
 
         $dsn = match ($driver) {
-            'mysql'  => "mysql:host={$host};port={$port};dbname={$dbname};charset={$charset}",
-            'pgsql'  => "pgsql:host={$host};port={$port};dbname={$dbname}",
+            'mysql'  => "mysql:host={$host};port=" . empty($port) ? "3306" : $port . ";dbname={$dbname};charset={$charset}",
+            'pgsql'  => "pgsql:host={$host};port=" . empty($port) ? "5432" : $port . ";dbname={$dbname};charset={$charset}",
             'sqlite' => "sqlite:{$dbname}",
             default  => throw new InvalidArgumentException("Unsupported driver: {$driver}"),
         };
