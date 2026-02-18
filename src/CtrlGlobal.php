@@ -227,12 +227,12 @@ class CtrlGlobal
     public function GetGlobalFilter(string $sql, array $params = []): array
     {
         if (empty($params)) {
-            return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            return $this->db->query($sql)->fetchAll();
         }
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -262,12 +262,12 @@ class CtrlGlobal
     public function runSql(string $sql, array $params = []): array
     {
         if (empty($params)) {
-            return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+            return $this->db->query($sql)->fetchAll();
         }
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll();
     }
 
     /**
