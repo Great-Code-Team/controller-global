@@ -1,0 +1,42 @@
+name: Publish to Packagist
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'        # v1.2.3
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'      # v1.2.3-beta.1  v1.2.3-rc.1
+
+jobs:
+  packagist:
+    name: Notify Packagist
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate tag format
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "Releasing tag: $TAG"
+
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Tag '$TAG' does not follow semantic versioning (vX.Y.Z)"
+            exit 1
+          fi
+
+      - name: Notify Packagist
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/packagist_response.json -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"repository\":{\"url\":\"https://github.com/${{ github.repository }}\"}}" \
+            "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}")
+
+          BODY=$(cat /tmp/packagist_response.json)
+          echo "HTTP status : $HTTP_STATUS"
+          echo "Response    : $BODY"
+
+          if [ "$HTTP_STATUS" != "202" ]; then
+            echo "::error::Packagist notification failed (HTTP $HTTP_STATUS): $BODY"
+            exit 1
+          fi
+
+          echo "Packagist notified successfully for tag ${{ github.ref_name }}"
