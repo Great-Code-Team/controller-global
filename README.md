@@ -274,7 +274,58 @@ $pos = new CtrlGroupPos('PC-001', 'https://integrator.example.com');
 
 ## Running tests
 
+The test suite is split into two suites: **Unit** (SQLite, no external services) and **Integration** (real MySQL).
+
+### Unit tests
+
 ```bash
 composer install
+./vendor/bin/phpunit --testsuite Unit
+```
+
+### Integration tests (MySQL)
+
+Requires `ext-pdo_mysql`. Set `DB_NAME` at minimum; all 23 tests skip automatically when it is absent.
+
+```bash
+export DB_DRIVER=mysql
+export DB_HOST=127.0.0.1
+export DB_PORT=3306
+export DB_NAME=test_db
+export DB_USER=root
+export DB_PASSWORD=secret
+
+./vendor/bin/phpunit --testsuite Integration --filter Mysql
+```
+
+### Integration tests (PostgreSQL)
+
+Requires `ext-pdo_pgsql`. Set `PGSQL_NAME` at minimum; all 23 tests skip automatically when it is absent.
+
+```bash
+export PGSQL_HOST=127.0.0.1
+export PGSQL_PORT=5432
+export PGSQL_NAME=test_db
+export PGSQL_USER=postgres
+export PGSQL_PASSWORD=secret
+
+./vendor/bin/phpunit --testsuite Integration --filter Pgsql
+```
+
+### Run all suites
+
+```bash
 ./vendor/bin/phpunit
 ```
+
+### CI
+
+GitHub Actions runs three jobs in parallel:
+
+| Job | Matrix | Services |
+|---|---|---|
+| `unit` | PHP 8.2 / 8.3 / 8.4 | — |
+| `integration` | PHP 8.2 / 8.3 / 8.4 × MySQL 8.0 / 8.4 | MySQL service container |
+| `integration-pgsql` | PHP 8.2 / 8.3 / 8.4 × PostgreSQL 15 / 17 | PostgreSQL service container |
+
+Coverage (Xdebug) is collected on the Unit job for PHP 8.3 and uploaded as a workflow artifact.

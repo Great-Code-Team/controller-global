@@ -270,6 +270,25 @@ class CtrlGlobal
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Exec a raw SQL statement
+     * 
+     * @param string $sql
+     * @param array $params
+     * @return int
+     * @throws \Exception
+     */
+    public function exec(string $sql, array $params = []): int
+    {
+        if (empty($params)) {
+            return $this->db->exec($sql);
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->rowCount();
+    }
+
     // -------------------------------------------------------------------------
     // Crypto (AES-256-CBC)
     // -------------------------------------------------------------------------

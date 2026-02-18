@@ -96,8 +96,8 @@ class Connection extends PDO
         $options  = $config['options']  ?? [];
 
         $dsn = match ($driver) {
-            'mysql'  => "mysql:host={$host};port=" . empty($port) ? "3306" : $port . ";dbname={$dbname};charset={$charset}",
-            'pgsql'  => "pgsql:host={$host};port=" . empty($port) ? "5432" : $port . ";dbname={$dbname};charset={$charset}",
+            'mysql'  => sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $host, $port ?: 3306, $dbname, $charset),
+            'pgsql'  => sprintf('pgsql:host=%s;port=%s;dbname=%s', $host, $port ?: 5432, $dbname),
             'sqlite' => "sqlite:{$dbname}",
             default  => throw new InvalidArgumentException("Unsupported driver: {$driver}"),
         };
