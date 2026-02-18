@@ -2,9 +2,6 @@
 
 namespace Greatcode\ControllerGlobal;
 
-use PDOStatement;
-use Throwable;
-
 class CtrlGlobal
 {
     private static CtrlGlobal $instance;
@@ -31,7 +28,20 @@ class CtrlGlobal
         } elseif (is_array($connection)) {
             $this->db = Connection::fromConfig($connection);
         } else {
-            $this->db = Connection::fromDefaultConfig();
+            global $cfg;
+            if (isset($cfg['db'])) {
+                $this->db = Connection::fromConfig([
+                    'driver'   => $cfg['db']['driver'] ?? 'mysql',
+                    'host'     => $cfg['db']['host'] ?? '127.0.0.1',
+                    'port'     => $cfg['db']['port'] ?? 3306,
+                    'dbname'   => $cfg['db']['name'] ?? '',
+                    'charset'  => $cfg['db']['charset'] ?? 'utf8mb4',
+                    'username' => $cfg['db']['user'] ?? '',
+                    'password' => $cfg['db']['password'] ?? '',
+                ]);
+            } else {
+                $this->db = Connection::fromEnv();
+            }
         }
     }
 

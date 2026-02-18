@@ -11,6 +11,9 @@ class Connection extends PDO
 {
     private static ?self $instance = null;
 
+    /** Tracks the options passed to the constructor for drivers that don't support getAttribute(). */
+    private array $pdoOptions = [];
+
     public function __construct(
         string $dsn,
         string $username = '',
@@ -24,7 +27,8 @@ class Connection extends PDO
             PDO::ATTR_PERSISTENT         => false,
         ];
 
-        parent::__construct($dsn, $username, $password, array_replace($defaults, $options));
+        $this->pdoOptions = array_replace($defaults, $options);
+        parent::__construct($dsn, $username, $password, $this->pdoOptions);
     }
 
     /**
@@ -41,6 +45,22 @@ class Connection extends PDO
         }
 
         return static::$instance;
+    }
+
+    /**
+     * Falls back to the stored constructor options when the driver doesn't support
+     * getAttribute() for a given attribute (e.g. SQLite + ATTR_EMULATE_PREPARES).
+     */
+    public function getAttribute(int $attribute): mixed
+    {
+        try {
+            return parent::getAttribute($attribute);
+        } catch (PDOException $e) {
+            if (array_key_exists($attribute, $this->pdoOptions)) {
+                return $this->pdoOptions[$attribute];
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -85,30 +105,6 @@ class Connection extends PDO
             'charset'  => getenv('DB_CHARSET')  ?: 'utf8mb4',
             'username' => getenv('DB_USER')     ?: '',
             'password' => getenv('DB_PASSWORD') ?: '',
-        ]);
-    }
-
-    /**
-     * Create a connection from default config.
-     *
-     */
-    public static function fromDefaultConfig(): static
-    {
-        global $cfg;
-        $driver  = @$cfg['db']['driver'] ?? 'mysql';
-        $host    = @$cfg['db']['host'] ?? '127.0.0.1';
-        $userdb  = @$cfg['db']['user'] ?? 'root';
-        $passdb  = @$cfg['db']['password'] ?? '';
-        $namedb  = @$cfg['db']['name'] ?? '';
-
-        return static::fromConfig([
-            'driver'   => $driver,
-            'host'     => $host,
-            'port'     => 3306,
-            'dbname'   => $namedb,
-            'charset'  => 'utf8mb4',
-            'username' => $userdb,
-            'password' => $passdb,
         ]);
     }
 
