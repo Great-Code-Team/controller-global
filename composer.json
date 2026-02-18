@@ -3,6 +3,7 @@
   "description": "Base Library Controller Global for GC",
   "type": "library",
   "version": "0.0.1",
+  "license": "MIT",
   "autoload": {
     "psr-4": {
       "Greatcode\\ControllerGlobal\\": "src/"
