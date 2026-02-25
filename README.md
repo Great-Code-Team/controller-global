@@ -273,6 +273,22 @@ $pos = new CtrlGroupPos('PC-001', 'https://integrator.example.com');
 
 ---
 
+## Logger
+
+Logger is a facade for Monolog. It is initialized in `CtrlGlobal::initialize()`.
+
+| Method                            | Description                                                               |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| `Log::initialize($name, $config)` | Initialize the logger. See `Logger::__construct()` for `$config` details. |
+| `Log::getInstance()`              | Get the logger instance.                                                  |
+| `Log::debug($message)`            | Log debug.                                                                |
+| `Log::info($message)`             | Log info.                                                                 |
+| `Log::warning($message)`          | Log warning.                                                              |
+| `Log::error($message)`            | Log error.                                                                |
+| `Log::fatal($message)`            | Log fatal.                                                                |
+
+---
+
 ## Running tests
 
 The test suite is split into two suites: **Unit** (SQLite, no external services) and **Integration** (real MySQL).
