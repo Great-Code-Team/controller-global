@@ -12,98 +12,6 @@ composer require greatcode/controller-global
 
 ---
 
-## Connection
-
-`Connection` extends `PDO` with safe defaults and convenience factory methods.
-
-**Default PDO attributes set on every connection:**
-
-| Attribute | Value |
-|---|---|
-| `ATTR_ERRMODE` | `ERRMODE_EXCEPTION` |
-| `ATTR_DEFAULT_FETCH_MODE` | `FETCH_ASSOC` |
-| `ATTR_EMULATE_PREPARES` | `false` |
-| `ATTR_PERSISTENT` | `false` |
-
-### Direct constructor
-
-```php
-use Greatcode\ControllerGlobal\Connection;
-
-$conn = new Connection('mysql:host=127.0.0.1;dbname=mydb;charset=utf8mb4', 'user', 'pass');
-```
-
-Override any default attribute:
-
-```php
-$conn = new Connection('sqlite::memory:', options: [PDO::ATTR_EMULATE_PREPARES => true]);
-```
-
-### fromConfig()
-
-Build a connection from an associative array. Supported drivers: `mysql`, `pgsql`, `sqlite`.
-
-```php
-$conn = Connection::fromConfig([
-    'driver'   => 'mysql',       // default: 'mysql'
-    'host'     => '127.0.0.1',   // default: 'localhost'
-    'port'     => 3306,
-    'dbname'   => 'mydb',
-    'charset'  => 'utf8mb4',     // default: 'utf8mb4'
-    'username' => 'user',
-    'password' => 'pass',
-    'options'  => [],            // extra PDO attributes
-]);
-
-// SQLite in-memory
-$conn = Connection::fromConfig(['driver' => 'sqlite', 'dbname' => ':memory:']);
-```
-
-### fromEnv()
-
-Reads connection parameters from environment variables.
-
-| Env var | Default |
-|---|---|
-| `DB_DRIVER` | `mysql` |
-| `DB_HOST` | `127.0.0.1` |
-| `DB_PORT` | `3306` |
-| `DB_NAME` | _(empty)_ |
-| `DB_CHARSET` | `utf8mb4` |
-| `DB_USER` | _(empty)_ |
-| `DB_PASSWORD` | _(empty)_ |
-
-```php
-$conn = Connection::fromEnv();
-```
-
-### getInstance() — singleton
-
-Returns the same `Connection` instance across calls. Useful for sharing a single connection throughout a request lifecycle.
-
-```php
-$conn = Connection::getInstance('mysql:host=127.0.0.1;dbname=mydb', 'user', 'pass');
-
-// Subsequent calls with any arguments return the first instance
-$same = Connection::getInstance();
-```
-
-### transaction()
-
-Wraps a callable in a database transaction. Commits on success, rolls back and re-throws on any exception.
-
-```php
-$conn->transaction(function (Connection $db) {
-    $db->exec("INSERT INTO orders (total) VALUES (100)");
-    $db->exec("UPDATE stock SET qty = qty - 1 WHERE id = 5");
-});
-
-// Return values are passed through
-$id = $conn->transaction(fn(Connection $db) => $db->lastInsertId());
-```
-
----
-
 ## CtrlGlobal
 
 General-purpose controller with DML helpers, SELECT wrappers, HTTP client wrappers, and AES-256-CBC encode/decode. Resolves its `Connection` automatically.
@@ -132,6 +40,7 @@ $ctrl = CtrlGlobal::getInstance();
 When constructed with `null` (default), it checks for a global `$cfg['db']` array first, then falls back to `Connection::fromEnv()`.
 
 The encryption key is resolved in this order:
+
 1. Explicit `$encryption_key` constructor argument
 2. `ENCRYPTION_KEY` environment variable
 3. Fallback value `'secret'`
@@ -248,6 +157,98 @@ $client = $ctrl->getHttpClient(); // GuzzleHttp\Client
 
 ---
 
+## Connection
+
+`Connection` extends `PDO` with safe defaults and convenience factory methods.
+
+**Default PDO attributes set on every connection:**
+
+| Attribute                 | Value               |
+| ------------------------- | ------------------- |
+| `ATTR_ERRMODE`            | `ERRMODE_EXCEPTION` |
+| `ATTR_DEFAULT_FETCH_MODE` | `FETCH_ASSOC`       |
+| `ATTR_EMULATE_PREPARES`   | `false`             |
+| `ATTR_PERSISTENT`         | `false`             |
+
+### Direct constructor
+
+```php
+use Greatcode\ControllerGlobal\Connection;
+
+$conn = new Connection('mysql:host=127.0.0.1;dbname=mydb;charset=utf8mb4', 'user', 'pass');
+```
+
+Override any default attribute:
+
+```php
+$conn = new Connection('sqlite::memory:', options: [PDO::ATTR_EMULATE_PREPARES => true]);
+```
+
+### fromConfig()
+
+Build a connection from an associative array. Supported drivers: `mysql`, `pgsql`, `sqlite`.
+
+```php
+$conn = Connection::fromConfig([
+    'driver'   => 'mysql',       // default: 'mysql'
+    'host'     => '127.0.0.1',   // default: 'localhost'
+    'port'     => 3306,
+    'dbname'   => 'mydb',
+    'charset'  => 'utf8mb4',     // default: 'utf8mb4'
+    'username' => 'user',
+    'password' => 'pass',
+    'options'  => [],            // extra PDO attributes
+]);
+
+// SQLite in-memory
+$conn = Connection::fromConfig(['driver' => 'sqlite', 'dbname' => ':memory:']);
+```
+
+### fromEnv()
+
+Reads connection parameters from environment variables.
+
+| Env var       | Default     |
+| ------------- | ----------- |
+| `DB_DRIVER`   | `mysql`     |
+| `DB_HOST`     | `127.0.0.1` |
+| `DB_PORT`     | `3306`      |
+| `DB_NAME`     | _(empty)_   |
+| `DB_CHARSET`  | `utf8mb4`   |
+| `DB_USER`     | _(empty)_   |
+| `DB_PASSWORD` | _(empty)_   |
+
+```php
+$conn = Connection::fromEnv();
+```
+
+### getInstance() — singleton
+
+Returns the same `Connection` instance across calls. Useful for sharing a single connection throughout a request lifecycle.
+
+```php
+$conn = Connection::getInstance('mysql:host=127.0.0.1;dbname=mydb', 'user', 'pass');
+
+// Subsequent calls with any arguments return the first instance
+$same = Connection::getInstance();
+```
+
+### transaction()
+
+Wraps a callable in a database transaction. Commits on success, rolls back and re-throws on any exception.
+
+```php
+$conn->transaction(function (Connection $db) {
+    $db->exec("INSERT INTO orders (total) VALUES (100)");
+    $db->exec("UPDATE stock SET qty = qty - 1 WHERE id = 5");
+});
+
+// Return values are passed through
+$id = $conn->transaction(fn(Connection $db) => $db->lastInsertId());
+```
+
+---
+
 ## CtrlGroupPos
 
 HTTP client for a remote POS-group integrator service.
@@ -260,15 +261,15 @@ $pos = new CtrlGroupPos('PC-001', 'https://integrator.example.com');
 
 ### Methods
 
-| Method | Description |
-|---|---|
-| `getGroupPos(array $params)` | Query POS user data. Required keys: `group_pos`, `browser`, `waktu`. |
-| `updateLoginProcess($id, $status)` | Update the login status of a POS session. |
-| `updateLastDate($id, $last_data)` | Update the last-data timestamp for a POS entry. |
-| `updatePOSLastDate(array $datas)` | Bulk-update POS last dates via JSON POST. Each item needs `status` and `data`. |
-| `updatePosToken($token, $id, $status)` | Update the token associated with a POS session. |
-| `updateBranchId($branchID, $id)` | Update the branch ID for a POS entry. |
-| `saveToLocal($table, $arFieldValues)` | Insert rows into a local table via `CtrlGlobal::insertAll()`. Returns `bool`. |
+| Method                                 | Description                                                                    |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| `getGroupPos(array $params)`           | Query POS user data. Required keys: `group_pos`, `browser`, `waktu`.           |
+| `updateLoginProcess($id, $status)`     | Update the login status of a POS session.                                      |
+| `updateLastDate($id, $last_data)`      | Update the last-data timestamp for a POS entry.                                |
+| `updatePOSLastDate(array $datas)`      | Bulk-update POS last dates via JSON POST. Each item needs `status` and `data`. |
+| `updatePosToken($token, $id, $status)` | Update the token associated with a POS session.                                |
+| `updateBranchId($branchID, $id)`       | Update the branch ID for a POS entry.                                          |
+| `saveToLocal($table, $arFieldValues)`  | Insert rows into a local table via `CtrlGlobal::insertAll()`. Returns `bool`.  |
 
 ---
 
@@ -322,10 +323,10 @@ export PGSQL_PASSWORD=secret
 
 GitHub Actions runs three jobs in parallel:
 
-| Job | Matrix | Services |
-|---|---|---|
-| `unit` | PHP 8.2 / 8.3 / 8.4 | — |
-| `integration` | PHP 8.2 / 8.3 / 8.4 × MySQL 8.0 / 8.4 | MySQL service container |
+| Job                 | Matrix                                   | Services                     |
+| ------------------- | ---------------------------------------- | ---------------------------- |
+| `unit`              | PHP 8.2 / 8.3 / 8.4                      | —                            |
+| `integration`       | PHP 8.2 / 8.3 / 8.4 × MySQL 8.0 / 8.4    | MySQL service container      |
 | `integration-pgsql` | PHP 8.2 / 8.3 / 8.4 × PostgreSQL 15 / 17 | PostgreSQL service container |
 
 Coverage (Xdebug) is collected on the Unit job for PHP 8.3 and uploaded as a workflow artifact.
