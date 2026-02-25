@@ -66,12 +66,26 @@ class CtrlGlobal
     }
 
     /**
+     * Initialize the singleton instance.
+     * @param Connection|array|null $connection
+     * - Connection instance  → used directly
+     * - array                → passed to Connection::fromConfig()
+     * - null                 → Connection::fromEnv()
+     * 
+     * @param string|null $encryption_key
+     */
+    public static function initialize(Connection|array|null $connection = null, string|null $encryption_key = null): void
+    {
+        self::$instance = new CtrlGlobal($connection, $encryption_key);
+    }
+
+    /**
      * Get or create a singleton instance.
      */
-    public static function getInstance(Connection|array|null $connection = null, string|null $encryption_key = null): static
+    public static function getInstance(): static
     {
         if (self::$instance === null) {
-            self::$instance = new CtrlGlobal($connection, $encryption_key);
+            throw new \RuntimeException('CtrlGlobal::getInstance() called before CtrlGlobal::initialize()');
         }
         return self::$instance;
     }
@@ -104,35 +118,53 @@ class CtrlGlobal
     }
 
     /**
-     * INSERT multiple rows in a single statement.
+     * INSERT multiple rows with batch statement.
      *
      * @param  string                        $table
-     * @param  array<int, array<string,mixed>> $arValues  list of column => value maps
+     * @param  array<int, array<string,mixed>> $datas  list of column => value maps
+     * @param  array{batch_size?: int} $options - batch size defaults to 1000
      * @return string  'success'
      */
-    public function insertAll(string $table, array $arValues): string
+    public function insertAll(string $table, array $datas, $options = []): string
     {
-        if (empty($arValues)) {
+        if (empty($datas)) {
             return 'success';
         }
 
-        $fields         = array_keys($arValues[0]);
-        $rowPlaceholder = '(' . implode(', ', array_fill(0, count($fields), '?')) . ')';
-        $sql            = sprintf(
-            'INSERT INTO %s (%s) VALUES %s',
-            $table,
-            implode(', ', $fields),
-            implode(', ', array_fill(0, count($arValues), $rowPlaceholder))
-        );
+        try {
+            $batch_size         = @$options['batch_size'] ?? 1000;
+            $fields             = array_keys($datas[0]);
+            $values_placeholder = '(' . implode(', ', array_fill(0, count($fields), '?')) . ')';
+            $pending_count       = count($datas);
 
-        $params = [];
-        foreach ($arValues as $row) {
-            array_push($params, ...array_values($row));
+            $this->db->beginTransaction();
+
+            while ($pending_count > 0) {
+                $exec_count     = min($pending_count, $batch_size);
+                $pending_count -= $exec_count;
+
+                $sql = sprintf(
+                    'INSERT INTO %s (%s) VALUES %s',
+                    $table,
+                    implode(', ', $fields),
+                    implode(', ', array_fill(0, $exec_count, $values_placeholder))
+                );
+
+                $params = [];
+                for ($i = 0; $i < $exec_count; $i++) {
+                    $params[] = $datas[$pending_count + $i];
+                }
+
+                $this->db->prepare($sql)->execute($params);
+            }
+
+            $this->db->commit();
+
+            return 'success';
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            throw $e;
         }
-
-        $this->db->prepare($sql)->execute($params);
-
-        return 'success';
     }
 
     /**
@@ -334,13 +366,14 @@ class CtrlGlobal
      * Send a GET request
      * 
      * @param string $url
+     * @param array $options Guzzle GET options
      * @return \Psr\Http\Message\ResponseInterface
      * @throws Exception
      */
-    public function httpGet(string $url)
+    public function httpGet(string $url, array $options = [])
     {
         $client = $this->getHttpClient();
-        return $client->get($url);
+        return $client->get($url, $options);
     }
 
     /**
@@ -348,13 +381,15 @@ class CtrlGlobal
      * 
      * @param string $url
      * @param array $data
+     * @param array $options Guzzle POST options
      * @return \Psr\Http\Message\ResponseInterface
      * @throws Exception
      */
-    public function httpPost(string $url, array $data)
+    public function httpPost(string $url, array $data, array $options = [])
     {
+        $options['form_params'] = $data;
         $client = $this->getHttpClient();
-        return $client->post($url, $data);
+        return $client->post($url, $options);
     }
 
     /**
@@ -362,13 +397,15 @@ class CtrlGlobal
      * 
      * @param string $url
      * @param array $data
+     * @param array $options Guzzle PUT options
      * @return \Psr\Http\Message\ResponseInterface
      * @throws Exception
      */
-    public function httpPut(string $url, array $data)
+    public function httpPut(string $url, array $data, array $options = [])
     {
+        $options['form_params'] = $data;
         $client = $this->getHttpClient();
-        return $client->put($url, $data);
+        return $client->put($url, $options);
     }
 
     /**
@@ -376,13 +413,15 @@ class CtrlGlobal
      * 
      * @param string $url
      * @param array $data
+     * @param array $options Guzzle PATCH options
      * @return \Psr\Http\Message\ResponseInterface
      * @throws Exception
      */
-    public function httpPatch(string $url, array $data)
+    public function httpPatch(string $url, array $data, array $options = [])
     {
+        $options['form_params'] = $data;
         $client = $this->getHttpClient();
-        return $client->patch($url, $data);
+        return $client->patch($url, $options);
     }
 
     /**
@@ -392,9 +431,9 @@ class CtrlGlobal
      * @return \Psr\Http\Message\ResponseInterface
      * @throws Exception
      */
-    public function httpDelete(string $url)
+    public function httpDelete(string $url, array $options = [])
     {
         $client = $this->getHttpClient();
-        return $client->delete($url);
+        return $client->delete($url, $options);
     }
 }
