@@ -135,13 +135,13 @@ class CtrlGlobal
             $batch_size         = @$options['batch_size'] ?? 1000;
             $fields             = array_keys($datas[0]);
             $values_placeholder = '(' . implode(', ', array_fill(0, count($fields), '?')) . ')';
-            $pending_count       = count($datas);
+            $pending_count      = count($datas);
+            $insert_count       = 0;
 
             $this->db->beginTransaction();
 
             while ($pending_count > 0) {
                 $exec_count     = min($pending_count, $batch_size);
-                $pending_count -= $exec_count;
 
                 $sql = sprintf(
                     'INSERT INTO %s (%s) VALUES %s',
@@ -152,10 +152,13 @@ class CtrlGlobal
 
                 $params = [];
                 for ($i = 0; $i < $exec_count; $i++) {
-                    $params[] = $datas[$pending_count + $i];
+                    $params[] = $datas[$insert_count + $i];
                 }
 
                 $this->db->prepare($sql)->execute($params);
+
+                $insert_count  += $exec_count;
+                $pending_count -= $exec_count;
             }
 
             $this->db->commit();
