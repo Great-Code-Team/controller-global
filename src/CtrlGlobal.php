@@ -3,7 +3,6 @@
 namespace Greatcode\ControllerGlobal;
 
 use GuzzleHttp\Client;
-use PDO;
 
 class CtrlGlobal
 {
@@ -98,12 +97,12 @@ class CtrlGlobal
      * INSERT a single row.
      *
      * @param  string               $table
-     * @param  array<string, mixed> $arFieldValues  column => value
+     * @param  array<string, mixed> $datas  column => value
      * @return string  'success'
      */
-    public function insert(string $table, array $arFieldValues): string
+    public function insert(string $table, array $datas): string
     {
-        $fields      = array_keys($arFieldValues);
+        $fields      = array_keys($datas);
         $placeholder = implode(', ', array_fill(0, count($fields), '?'));
         $sql         = sprintf(
             'INSERT INTO %s (%s) VALUES (%s)',
@@ -112,7 +111,7 @@ class CtrlGlobal
             $placeholder
         );
 
-        $this->db->prepare($sql)->execute(array_values($arFieldValues));
+        $this->db->prepare($sql)->execute(array_values($datas));
 
         return 'success';
     }
@@ -134,7 +133,7 @@ class CtrlGlobal
         try {
             $batch_size         = @$options['batch_size'] ?? 1000;
             $fields             = array_keys($datas[0]);
-            $values_placeholder = '(' . implode(', ', array_fill(0, count($fields), '?')) . ')';
+            $values_placeholder = '(' . implode(', ', array_fill(0, count($fields), "?")) . ')';
             $pending_count      = count($datas);
             $insert_count       = 0;
 
@@ -152,7 +151,7 @@ class CtrlGlobal
 
                 $params = [];
                 for ($i = 0; $i < $exec_count; $i++) {
-                    $params[] = $datas[$insert_count + $i];
+                    array_push($params, ...array_values($datas[$insert_count + $i]));
                 }
 
                 $this->db->prepare($sql)->execute($params);
