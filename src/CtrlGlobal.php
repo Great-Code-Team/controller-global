@@ -130,6 +130,8 @@ class CtrlGlobal
             return 'success';
         }
 
+        $suffix_sql = @$options['suffix_sql'] ?? '';
+
         try {
             $batch_size         = @$options['batch_size'] ?? 1000;
             $fields             = array_keys($datas[0]);
@@ -143,10 +145,11 @@ class CtrlGlobal
                 $exec_count     = min($pending_count, $batch_size);
 
                 $sql = sprintf(
-                    'INSERT INTO %s (%s) VALUES %s',
+                    'INSERT INTO %s (%s) VALUES %s %s',
                     $table,
                     implode(', ', $fields),
-                    implode(', ', array_fill(0, $exec_count, $values_placeholder))
+                    implode(', ', array_fill(0, $exec_count, $values_placeholder)),
+                    $suffix_sql
                 );
 
                 $params = [];
