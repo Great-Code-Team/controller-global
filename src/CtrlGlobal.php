@@ -98,17 +98,19 @@ class CtrlGlobal
      *
      * @param  string               $table
      * @param  array<string, mixed> $datas  column => value
+     * @param  array{suffix_sql?: string} $options
      * @return string  'success'
      */
-    public function insert(string $table, array $datas): string
+    public function insert(string $table, array $datas, array $options = []): string
     {
         $fields      = array_keys($datas);
         $placeholder = implode(', ', array_fill(0, count($fields), '?'));
         $sql         = sprintf(
-            'INSERT INTO %s (%s) VALUES (%s)',
+            'INSERT INTO %s (%s) VALUES (%s) %s',
             $table,
             implode(', ', $fields),
-            $placeholder
+            $placeholder,
+            @$options['suffix_sql'] ?? ''
         );
 
         $this->db->prepare($sql)->execute(array_values($datas));
